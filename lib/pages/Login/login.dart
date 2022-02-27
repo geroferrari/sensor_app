@@ -64,9 +64,10 @@ class _LoginPageState extends State<LoginPage> {
                     child: Column(
                       children: <Widget>[
                         const SizedBox(height: 25),
-                        Text(
-                          "Login",
-                          style: Theme.of(context).textTheme.headline2,
+                        const Icon(
+                          Icons.person,
+                          color: Colors.greenAccent,
+                          size: 75,
                         ),
                         const SizedBox(height: 20),
                         new TextFormField(
@@ -129,7 +130,7 @@ class _LoginPageState extends State<LoginPage> {
                             }
                           },
                           child: const Text(
-                            "Login",
+                            "Iniciar Sesion",
                             style: TextStyle(color: Colors.white),
                           ),
                         ),

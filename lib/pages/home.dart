@@ -67,6 +67,8 @@ class _MainPage extends State<MainPage> {
             .listen((connectionState) async {
           // Handle connection state updates
           print('connection state:');
+          print(device.id);
+          print(device);
           print(connectionState.connectionState);
           if (connectionState.connectionState ==
               DeviceConnectionState.connected) {
@@ -148,7 +150,8 @@ class _MainPage extends State<MainPage> {
                     children: [
                       Text("Información del Nodo",
                           style: TextStyle(
-                              fontSize: 35, color: Colors.green.shade900)),
+                              fontSize: 35,
+                              color: Colors.greenAccent.shade700)),
                     ],
                     mainAxisAlignment: MainAxisAlignment
                         .center, //Center Row contents horizontally,
@@ -164,7 +167,7 @@ class _MainPage extends State<MainPage> {
                           color: Colors.greenAccent,
                           size: 28,
                         ),
-                        Text("Humedad actual: " + humidity.toString(),
+                        Text("Humedad actual: " + humidity.toString() + "%",
                             style: const TextStyle(
                                 fontSize: 28, color: Colors.greenAccent))
                       ] else ...[
@@ -182,7 +185,7 @@ class _MainPage extends State<MainPage> {
                       if (printMessage == "Estado: Nodo conectado") ...[
                         const Icon(Icons.battery_charging_full_rounded,
                             color: Colors.greenAccent, size: 28),
-                        Text("Bateria actual: " + battery.toString(),
+                        Text("Bateria actual: " + battery.toString() + "%",
                             style: const TextStyle(
                                 fontSize: 28, color: Colors.greenAccent)),
                       ] else ...[
@@ -215,23 +218,16 @@ class _MainPage extends State<MainPage> {
                     crossAxisAlignment: CrossAxisAlignment
                         .center //Center Row contents vertically,
                     ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
                 Row(
                     children: [
                       if (printMessage == "Estado: Nodo conectado") ...[
-                        const Icon(
-                          Icons.connect_without_contact_outlined,
-                          color: Colors.greenAccent,
-                          size: 28,
-                        ),
-                        const Text("Agregar a la red ",
-                            style: TextStyle(
-                                fontSize: 28, color: Colors.greenAccent)),
                         ElevatedButton(
                             onPressed: _connectBLE,
-                            child: const Text('Conectar'),
+                            child: const Text('Agregar Nodo a la red'),
                             style: ElevatedButton.styleFrom(
                               primary: Colors.greenAccent,
+                              minimumSize: const Size(250, 50),
                             ))
                       ] else ...[
                         const Text("Indefinido")
@@ -246,19 +242,12 @@ class _MainPage extends State<MainPage> {
                 Row(
                     children: [
                       if (printMessage == "Estado: Nodo conectado") ...[
-                        const Icon(
-                          Icons.connect_without_contact_outlined,
-                          color: Colors.greenAccent,
-                          size: 28,
-                        ),
-                        const Text("Encender Riego ",
-                            style: TextStyle(
-                                fontSize: 28, color: Colors.greenAccent)),
                         ElevatedButton(
                             onPressed: _connectBLE,
-                            child: const Text('Encender'),
+                            child: const Text('Encender Riego'),
                             style: ElevatedButton.styleFrom(
                               primary: Colors.greenAccent,
+                              minimumSize: const Size(250, 50),
                             ))
                       ] else ...[
                         const Text("Indefinido")
