@@ -19,6 +19,7 @@ class _MainPage extends State<MainPage> {
   late StreamSubscription _subscription;
   late StreamSubscription<ConnectionStateUpdate> _connection;
   String deviceName = "Multi-Sensor";
+  String deviceID = "";
 
   String uuidBatteryService = "f000180f-0451-4000-b000-000000000000";
   String uuidBatteryCharacteristic = "f0002a19-0451-4000-b000-000000000000";
@@ -41,6 +42,8 @@ class _MainPage extends State<MainPage> {
   late int humidity;
   int flow = 0;
   String printMessage = "Bienvenido, Presione el boton CONECTAR";
+  bool nodoConnectedToNet = false;
+  bool irrigationWorking = false;
 
   void _disconnect() async {
     _subscription.cancel();
@@ -66,9 +69,8 @@ class _MainPage extends State<MainPage> {
         )
             .listen((connectionState) async {
           // Handle connection state updates
+          deviceID = device.id;
           print('connection state:');
-          print(device.id);
-          print(device);
           print(connectionState.connectionState);
           if (connectionState.connectionState ==
               DeviceConnectionState.connected) {
@@ -116,6 +118,50 @@ class _MainPage extends State<MainPage> {
     });
   }
 
+  void _addNodoToStarNet() {
+    if (deviceID != "") {
+      final characteristic = QualifiedCharacteristic(
+          serviceId: Uuid.parse(uuidNetService),
+          characteristicId: Uuid.parse(uuidNetCharacteristic),
+          deviceId: deviceID);
+      _ble.writeCharacteristicWithoutResponse(characteristic, value: [0x01]);
+      _connectBLE();
+    }
+  }
+
+  void _removeNodoToStarNet() {
+    if (deviceID != "") {
+      final characteristic = QualifiedCharacteristic(
+          serviceId: Uuid.parse(uuidNetService),
+          characteristicId: Uuid.parse(uuidNetCharacteristic),
+          deviceId: deviceID);
+      _ble.writeCharacteristicWithoutResponse(characteristic, value: [0x00]);
+      _connectBLE();
+    }
+  }
+
+  void _turnOnIrrigation() {
+    if (deviceID != "") {
+      final characteristic = QualifiedCharacteristic(
+          serviceId: Uuid.parse(uuidValveService),
+          characteristicId: Uuid.parse(uuidValveCharacteristic),
+          deviceId: deviceID);
+      _ble.writeCharacteristicWithoutResponse(characteristic, value: [1]);
+      _connectBLE();
+    }
+  }
+
+  void _turnOffIrrigation() {
+    if (deviceID != "") {
+      final characteristic = QualifiedCharacteristic(
+          serviceId: Uuid.parse(uuidValveService),
+          characteristicId: Uuid.parse(uuidValveCharacteristic),
+          deviceId: deviceID);
+      _ble.writeCharacteristicWithoutResponse(characteristic, value: [0]);
+      _connectBLE();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,23 +170,21 @@ class _MainPage extends State<MainPage> {
         ),
         body: ListView(children: <Widget>[
           ListTile(
-            title: Text(printMessage),
+            title: const Center(child: Text('Nombre del dispositivo')),
+            subtitle: Center(child: Text(deviceName + " (" + deviceID + ")")),
+            onLongPress: null,
           ),
           const Divider(),
           ListTile(
-            title: const Text('Conectarse con el Nodo'),
-            trailing: ElevatedButton(
-                onPressed: _connectBLE,
-                child: const Text('Conectar'),
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.greenAccent,
-                )),
+            title: Center(child: Text(printMessage)),
           ),
-          ListTile(
-            title: const Text('Nombre del dispositivo'),
-            subtitle: Text(deviceName),
-            onLongPress: null,
-          ),
+          ElevatedButton(
+              onPressed: _connectBLE,
+              child: (printMessage != "Estado: Nodo conectado")
+                  ? const Text('Conectarse al Nodo')
+                  : const Text('Actualizar la conexión'),
+              style: ElevatedButton.styleFrom(
+                  primary: Colors.greenAccent, fixedSize: const Size(100, 50))),
           const Divider(),
           Center(
             child: Column(
@@ -222,13 +266,23 @@ class _MainPage extends State<MainPage> {
                 Row(
                     children: [
                       if (printMessage == "Estado: Nodo conectado") ...[
-                        ElevatedButton(
-                            onPressed: _connectBLE,
-                            child: const Text('Agregar Nodo a la red'),
-                            style: ElevatedButton.styleFrom(
-                              primary: Colors.greenAccent,
-                              minimumSize: const Size(250, 50),
-                            ))
+                        if (nodoConnectedToNet = false) ...[
+                          ElevatedButton(
+                              onPressed: _addNodoToStarNet,
+                              child: const Text('Agregar Nodo a la red'),
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.redAccent,
+                                minimumSize: const Size(250, 50),
+                              ))
+                        ] else ...[
+                          ElevatedButton(
+                              onPressed: _removeNodoToStarNet,
+                              child: const Text('Sacar Nodo de la red'),
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.greenAccent,
+                                minimumSize: const Size(250, 50),
+                              ))
+                        ]
                       ] else ...[
                         const Text("Indefinido")
                       ]
@@ -242,13 +296,23 @@ class _MainPage extends State<MainPage> {
                 Row(
                     children: [
                       if (printMessage == "Estado: Nodo conectado") ...[
-                        ElevatedButton(
-                            onPressed: _connectBLE,
-                            child: const Text('Encender Riego'),
-                            style: ElevatedButton.styleFrom(
-                              primary: Colors.greenAccent,
-                              minimumSize: const Size(250, 50),
-                            ))
+                        if (irrigationWorking = false) ...[
+                          ElevatedButton(
+                              onPressed: _turnOnIrrigation,
+                              child: const Text('Encender Riego'),
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.redAccent,
+                                minimumSize: const Size(250, 50),
+                              ))
+                        ] else ...[
+                          ElevatedButton(
+                              onPressed: _turnOffIrrigation,
+                              child: const Text('Apagar Riego'),
+                              style: ElevatedButton.styleFrom(
+                                primary: Colors.greenAccent,
+                                minimumSize: const Size(250, 50),
+                              ))
+                        ]
                       ] else ...[
                         const Text("Indefinido")
                       ]
