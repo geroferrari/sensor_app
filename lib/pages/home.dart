@@ -1,13 +1,9 @@
-// ignore_for_file: prefer_collection_literals
+// ignore_for_file: prefer_collection_literals, avoid_print
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'package:untitled/pages/bluetooth/SelectBondedDevicePage.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:scoped_model/scoped_model.dart';
-import 'package:untitled/bluetooth/BackgroundCollectedPage.dart';
-import 'package:untitled/bluetooth/BackgroundCollectingTask.dart';
-import 'package:untitled/pages/bluetooth/DiscoveryPage.dart';
 
 // import './helpers/LineChart.dart';
 
@@ -19,268 +15,263 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPage extends State<MainPage> {
-  BluetoothState _bluetoothState = BluetoothState.UNKNOWN;
+  final FlutterReactiveBle _ble = FlutterReactiveBle();
+  late StreamSubscription _subscription;
+  late StreamSubscription<ConnectionStateUpdate> _connection;
+  String deviceName = "Multi-Sensor";
 
-  String _address = "...";
-  String _name = "...";
+  String uuidBatteryService = "f000180f-0451-4000-b000-000000000000";
+  String uuidBatteryCharacteristic = "f0002a19-0451-4000-b000-000000000000";
+  String uuidHumidityService = "f000aa20-0451-4000-b000-000000000000";
+  String uuidHumidityCharacteristic = "f000aa21-0451-4000-b000-000000000000";
 
-  Timer? _discoverableTimeoutTimer;
-  int _discoverableTimeoutSecondsLeft = 0;
+  //Change for FLOW UUID //
+  String uuidFlowService = "f000aa20-0451-4000-b000-000000000000";
+  String uuidFlowCharacteristic = "f000aa21-0451-4000-b000-000000000000";
 
-  BackgroundCollectingTask? _collectingTask;
+  //change for net UUID //
+  String uuidNetService = "f0001110-0451-4000-b000-000000000000";
+  String uuidNetCharacteristic = "f0001111-0451-4000-b000-000000000000";
 
-  bool _autoAcceptPairingRequests = false;
+  //change for PIN UUID //
+  String uuidValveService = "f0001110-0451-4000-b000-000000000000";
+  String uuidValveCharacteristic = "f0001112-0451-4000-b000-000000000000";
 
-  @override
-  void initState() {
-    super.initState();
+  late int battery;
+  late int humidity;
+  int flow = 0;
+  String printMessage = "Bienvenido, Presione el boton CONECTAR";
 
-    // Get current state
-    FlutterBluetoothSerial.instance.state.then((state) {
-      setState(() {
-        _bluetoothState = state;
-      });
-    });
-
-    Future.doWhile(() async {
-      // Wait if adapter not enabled
-      if ((await FlutterBluetoothSerial.instance.isEnabled) ?? false) {
-        return false;
-      }
-      await Future.delayed(const Duration(milliseconds: 0xDD));
-      return true;
-    }).then((_) {
-      // Update the address field
-      FlutterBluetoothSerial.instance.address.then((address) {
-        setState(() {
-          _address = address!;
-        });
-      });
-    });
-
-    FlutterBluetoothSerial.instance.name.then((name) {
-      setState(() {
-        _name = name!;
-      });
-    });
-
-    // Listen for futher state changes
-    FlutterBluetoothSerial.instance
-        .onStateChanged()
-        .listen((BluetoothState state) {
-      setState(() {
-        _bluetoothState = state;
-
-        // Discoverable mode is disabled when Bluetooth gets disabled
-        _discoverableTimeoutTimer = null;
-        _discoverableTimeoutSecondsLeft = 0;
-      });
-    });
+  void _disconnect() async {
+    _subscription.cancel();
+    if (_connection != null) {
+      await _connection.cancel();
+    }
   }
 
-  @override
-  void dispose() {
-    FlutterBluetoothSerial.instance.setPairingRequestHandler(null);
-    _collectingTask?.dispose();
-    _discoverableTimeoutTimer?.cancel();
-    super.dispose();
+  void _connectBLE() {
+    setState(() {
+      printMessage = 'Estado: Buscando dispositivos...';
+    });
+    _disconnect();
+    _subscription = _ble.scanForDevices(
+        withServices: [],
+        scanMode: ScanMode.lowLatency,
+        requireLocationServicesEnabled: true).listen((device) {
+      if (device.name == deviceName) {
+        print('Nodo encontrado!');
+        _connection = _ble
+            .connectToDevice(
+          id: device.id,
+        )
+            .listen((connectionState) async {
+          // Handle connection state updates
+          print('connection state:');
+          print(connectionState.connectionState);
+          if (connectionState.connectionState ==
+              DeviceConnectionState.connected) {
+            printMessage = "Estado: Nodo conectado";
+            //Battery Characteristics
+            final batteryCharacteristic = QualifiedCharacteristic(
+                serviceId: Uuid.parse(uuidBatteryService),
+                characteristicId: Uuid.parse(uuidBatteryCharacteristic),
+                deviceId: device.id);
+            final batteryResponse =
+                await _ble.readCharacteristic(batteryCharacteristic);
+            print(batteryResponse);
+            //humidiy characteristics
+            final humidityCharacteristic = QualifiedCharacteristic(
+                serviceId: Uuid.parse(uuidHumidityService),
+                characteristicId: Uuid.parse(uuidHumidityCharacteristic),
+                deviceId: device.id);
+            final humidityResponse =
+                await _ble.readCharacteristic(humidityCharacteristic);
+            print(humidityCharacteristic);
+            //Flow characteristics
+            final flowCharacteristic = QualifiedCharacteristic(
+                serviceId: Uuid.parse(uuidFlowService),
+                characteristicId: Uuid.parse(uuidFlowCharacteristic),
+                deviceId: device.id);
+            final flowResponse =
+                await _ble.readCharacteristic(flowCharacteristic);
+            print(flowCharacteristic);
+            setState(() {
+              battery = batteryResponse[0];
+              humidity = humidityResponse[0];
+              flow = flowResponse[0];
+            });
+            _disconnect();
+            print('disconnected');
+          }
+        }, onError: (dynamic error) {
+          // Handle a possible error
+          print(error.toString());
+        });
+      }
+    }, onError: (error) {
+      print('error!');
+      print(error.toString());
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sensor App'),
-      ),
-      body: ListView(
-        children: <Widget>[
+        appBar: AppBar(
+          title: const Text('Nodo APP'),
+        ),
+        body: ListView(children: <Widget>[
+          ListTile(
+            title: Text(printMessage),
+          ),
           const Divider(),
-          SwitchListTile(
-            title: const Text('Habilitar Bluetooth'),
-            value: _bluetoothState.isEnabled,
-            onChanged: (bool value) {
-              // Do the request and update with the true value then
-              future() async {
-                // async lambda seems to not working
-                if (value) {
-                  await FlutterBluetoothSerial.instance.requestEnable();
-                } else {
-                  await FlutterBluetoothSerial.instance.requestDisable();
-                }
-              }
-
-              future().then((_) {
-                setState(() {});
-              });
-            },
-          ),
           ListTile(
-            title: const Text('Estado de Conexión'),
-            subtitle: Text(_bluetoothState.toString()),
+            title: const Text('Conectarse con el Nodo'),
             trailing: ElevatedButton(
-              child: const Text('Ajustes'),
-              onPressed: () {
-                FlutterBluetoothSerial.instance.openSettings();
-              },
-            ),
-          ),
-          ListTile(
-            title: const Text('Dirección del dispositivo'),
-            subtitle: Text(_address),
+                onPressed: _connectBLE,
+                child: const Text('Conectar'),
+                style: ElevatedButton.styleFrom(
+                  primary: Colors.greenAccent,
+                )),
           ),
           ListTile(
             title: const Text('Nombre del dispositivo'),
-            subtitle: Text(_name),
+            subtitle: Text(deviceName),
             onLongPress: null,
           ),
           const Divider(),
-          const ListTile(title: Text('Funciones de emparejamiento y conexión')),
-          SwitchListTile(
-            title: const Text('Usar PIN para emparejamiento'),
-            subtitle: const Text('Pin 1234'),
-            value: _autoAcceptPairingRequests,
-            onChanged: (bool value) {
-              setState(() {
-                _autoAcceptPairingRequests = value;
-              });
-              if (value) {
-                FlutterBluetoothSerial.instance.setPairingRequestHandler(
-                    (BluetoothPairingRequest request) {
-                  print("intentando conexión con Pin 1234");
-                  if (request.pairingVariant == PairingVariant.Pin) {
-                    return Future.value("1234");
-                  }
-                  return Future.value(null);
-                });
-              } else {
-                FlutterBluetoothSerial.instance.setPairingRequestHandler(null);
-              }
-            },
-          ),
-          ListTile(
-            title: ElevatedButton(
-                child: const Text('Buscar nuevos dispositivos'),
-                onPressed: () async {
-                  final BluetoothDevice? selectedDevice =
-                      await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) {
-                        return const DiscoveryPage();
-                      },
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Row(
+                    children: [
+                      Text("Información del Nodo",
+                          style: TextStyle(
+                              fontSize: 35, color: Colors.green.shade900)),
+                    ],
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, //Center Row contents horizontally,
+                    crossAxisAlignment: CrossAxisAlignment
+                        .center //Center Row contents vertically,
                     ),
-                  );
-
-                  if (selectedDevice != null) {
-                    print('Discovery -> selected ' + selectedDevice.address);
-                  } else {
-                    print('Discovery -> no device selected');
-                  }
-                }),
-          ),
-          ListTile(
-            title: ElevatedButton(
-              child: const Text('Connectar nodo a la red'),
-              onPressed: () async {
-                final BluetoothDevice? selectedDevice =
-                    await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) {
-                      return const SelectBondedDevicePage(
-                          checkAvailability: false);
-                    },
-                  ),
-                );
-
-                if (selectedDevice != null) {
-                  print('Connect -> selected ' + selectedDevice.address);
-                } else {
-                  print('Connect -> no device selected');
-                }
-              },
-            ),
-          ),
-          ListTile(
-            title: ElevatedButton(
-              child: ((_collectingTask?.inProgress ?? false)
-                  ? const Text('Desconectar Nodo')
-                  : const Text('Conectar Nodo')),
-              onPressed: () async {
-                if (_collectingTask?.inProgress ?? false) {
-                  await _collectingTask!.cancel();
-                  setState(() {
-                    /* Update for `_collectingTask.inProgress` */
-                  });
-                } else {
-                  final BluetoothDevice? selectedDevice =
-                      await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) {
-                        return const SelectBondedDevicePage(
-                            checkAvailability: false);
-                      },
-                    ),
-                  );
-
-                  if (selectedDevice != null) {
-                    await _startBackgroundTask(context, selectedDevice);
-                    setState(() {
-                      /* Update for `_collectingTask.inProgress` */
-                    });
-                  }
-                }
-              },
-            ),
-          ),
-          ListTile(
-            title: ElevatedButton(
-              child: const Text('Ver información del Nodo'),
-              onPressed: (_collectingTask != null)
-                  ? () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) {
-                            return ScopedModel<BackgroundCollectingTask>(
-                              model: _collectingTask!,
-                              child: BackgroundCollectedPage(),
-                            );
-                          },
+                const SizedBox(height: 30),
+                Row(
+                    children: [
+                      if (printMessage == "Estado: Nodo conectado") ...[
+                        const Icon(
+                          Icons.water_damage_outlined,
+                          color: Colors.greenAccent,
+                          size: 28,
                         ),
-                      );
-                    }
-                  : null,
+                        Text("Humedad actual: " + humidity.toString(),
+                            style: const TextStyle(
+                                fontSize: 28, color: Colors.greenAccent))
+                      ] else ...[
+                        const Text("Indefinido")
+                      ]
+                    ],
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, //Center Row contents horizontally,
+                    crossAxisAlignment: CrossAxisAlignment
+                        .center //Center Row contents vertically,
+                    ),
+                const SizedBox(height: 20),
+                Row(
+                    children: [
+                      if (printMessage == "Estado: Nodo conectado") ...[
+                        const Icon(Icons.battery_charging_full_rounded,
+                            color: Colors.greenAccent, size: 28),
+                        Text("Bateria actual: " + battery.toString(),
+                            style: const TextStyle(
+                                fontSize: 28, color: Colors.greenAccent)),
+                      ] else ...[
+                        const Text("Indefinido")
+                      ]
+                    ],
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, //Center Row contents horizontally,
+                    crossAxisAlignment: CrossAxisAlignment
+                        .center //Center Row contents vertically,
+                    ),
+                const SizedBox(height: 20),
+                Row(
+                    children: [
+                      if (printMessage == "Estado: Nodo conectado") ...[
+                        const Icon(
+                          Icons.water_outlined,
+                          color: Colors.greenAccent,
+                          size: 28,
+                        ),
+                        Text("Caudal actual: " + flow.toString(),
+                            style: const TextStyle(
+                                fontSize: 28, color: Colors.greenAccent))
+                      ] else ...[
+                        const Text("Indefinido")
+                      ]
+                    ],
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, //Center Row contents horizontally,
+                    crossAxisAlignment: CrossAxisAlignment
+                        .center //Center Row contents vertically,
+                    ),
+                const SizedBox(height: 20),
+                Row(
+                    children: [
+                      if (printMessage == "Estado: Nodo conectado") ...[
+                        const Icon(
+                          Icons.connect_without_contact_outlined,
+                          color: Colors.greenAccent,
+                          size: 28,
+                        ),
+                        const Text("Agregar a la red ",
+                            style: TextStyle(
+                                fontSize: 28, color: Colors.greenAccent)),
+                        ElevatedButton(
+                            onPressed: _connectBLE,
+                            child: const Text('Conectar'),
+                            style: ElevatedButton.styleFrom(
+                              primary: Colors.greenAccent,
+                            ))
+                      ] else ...[
+                        const Text("Indefinido")
+                      ]
+                    ],
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, //Center Row contents horizontally,
+                    crossAxisAlignment: CrossAxisAlignment
+                        .center //Center Row contents vertically,
+                    ),
+                const SizedBox(height: 20),
+                Row(
+                    children: [
+                      if (printMessage == "Estado: Nodo conectado") ...[
+                        const Icon(
+                          Icons.connect_without_contact_outlined,
+                          color: Colors.greenAccent,
+                          size: 28,
+                        ),
+                        const Text("Encender Riego ",
+                            style: TextStyle(
+                                fontSize: 28, color: Colors.greenAccent)),
+                        ElevatedButton(
+                            onPressed: _connectBLE,
+                            child: const Text('Encender'),
+                            style: ElevatedButton.styleFrom(
+                              primary: Colors.greenAccent,
+                            ))
+                      ] else ...[
+                        const Text("Indefinido")
+                      ]
+                    ],
+                    mainAxisAlignment: MainAxisAlignment
+                        .center, //Center Row contents horizontally,
+                    crossAxisAlignment: CrossAxisAlignment
+                        .center //Center Row contents vertically,
+                    ),
+              ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _startBackgroundTask(
-    BuildContext context,
-    BluetoothDevice server,
-  ) async {
-    try {
-      _collectingTask = await BackgroundCollectingTask.connect(server);
-      await _collectingTask!.start();
-    } catch (ex) {
-      _collectingTask?.cancel();
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Error occured while connecting'),
-            content: Text(ex.toString()),
-            actions: <Widget>[
-              TextButton(
-                child: const Text("Close"),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    }
+          )
+        ]));
   }
 }

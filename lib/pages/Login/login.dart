@@ -1,10 +1,10 @@
 // ignore_for_file: deprecated_member_use, unnecessary_new
 
 import 'package:flutter/material.dart';
-import 'package:untitled/authentication/api_service.dart';
-import 'package:untitled/pages/login/components/login_model.dart';
-import 'package:untitled/pages/home.dart';
-import 'package:untitled/widgets/ProgressHUD.dart';
+import 'package:agricultura_inteligente/authentication/api_service.dart';
+import 'package:agricultura_inteligente/pages/login/components/login_model.dart';
+import 'package:agricultura_inteligente/pages/home.dart';
+import 'package:agricultura_inteligente/widgets/ProgressHUD.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -71,12 +71,9 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 20),
                         new TextFormField(
                           keyboardType: TextInputType.emailAddress,
-                          onSaved: (input) => loginRequestModel!.email = input!,
-                          validator: (input) => !input!.contains('@')
-                              ? "Email Id should be valid"
-                              : null,
+                          onSaved: (input) => loginRequestModel!.token = input!,
                           decoration: new InputDecoration(
-                            hintText: "Email Address",
+                            hintText: "Token",
                             enabledBorder: UnderlineInputBorder(
                                 borderSide: BorderSide(
                                     color: Theme.of(context)
@@ -91,50 +88,6 @@ class _LoginPageState extends State<LoginPage> {
                             prefixIcon: Icon(
                               Icons.email,
                               color: Theme.of(context).colorScheme.secondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        new TextFormField(
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.secondary),
-                          keyboardType: TextInputType.text,
-                          onSaved: (input) =>
-                              loginRequestModel?.password = input!,
-                          validator: (input) => input!.length < 3
-                              ? "Password should be more than 3 characters"
-                              : null,
-                          obscureText: hidePassword,
-                          decoration: new InputDecoration(
-                            hintText: "Password",
-                            enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSecondary
-                                        .withOpacity(0.8))),
-                            focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSecondary)),
-                            prefixIcon: Icon(
-                              Icons.lock,
-                              color: Theme.of(context).colorScheme.secondary,
-                            ),
-                            suffixIcon: IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  hidePassword = !hidePassword;
-                                });
-                              },
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .secondary
-                                  .withOpacity(0.8),
-                              icon: Icon(hidePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
                             ),
                           ),
                         ),
@@ -156,7 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                                   isApiCallProcess = false;
                                 });
 
-                                if (value.token!.isNotEmpty) {
+                                if (value.token != "0") {
                                   const snackBar = SnackBar(
                                       content: Text("Login Successful"));
                                   scaffoldKey.currentState!
@@ -167,8 +120,8 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   );
                                 } else {
-                                  final snackBar = SnackBar(
-                                      content: Text(value.error ?? ""));
+                                  const snackBar =
+                                      SnackBar(content: Text("ERROR"));
                                   scaffoldKey.currentState!
                                       .showSnackBar(snackBar);
                                 }
