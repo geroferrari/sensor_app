@@ -18,25 +18,17 @@ class _MainPage extends State<MainPage> {
   final FlutterReactiveBle _ble = FlutterReactiveBle();
   late StreamSubscription _subscription;
   late StreamSubscription<ConnectionStateUpdate> _connection;
-  String deviceName = "Multi-Sensor";
+  String deviceName = "DMM 15.4 Sensor RD";
   String deviceID = "";
 
   String uuidBatteryService = "f000180f-0451-4000-b000-000000000000";
   String uuidBatteryCharacteristic = "f0002a19-0451-4000-b000-000000000000";
-  String uuidHumidityService = "f000aa20-0451-4000-b000-000000000000";
-  String uuidHumidityCharacteristic = "f000aa21-0451-4000-b000-000000000000";
+  String uuidHumidityService = "f0001180-0451-4000-b000-000000000000";
+  String uuidHumidityCharacteristic = "f0001181-0451-4000-b000-000000000000";
 
   //Change for FLOW UUID //
   String uuidFlowService = "f000aa20-0451-4000-b000-000000000000";
   String uuidFlowCharacteristic = "f000aa21-0451-4000-b000-000000000000";
-
-  //change for net UUID //
-  String uuidNetService = "f0001110-0451-4000-b000-000000000000";
-  String uuidNetCharacteristic = "f0001111-0451-4000-b000-000000000000";
-
-  //change for PIN UUID //
-  String uuidValveService = "f0001110-0451-4000-b000-000000000000";
-  String uuidValveCharacteristic = "f0001112-0451-4000-b000-000000000000";
 
   late int battery;
   late int humidity;
@@ -61,7 +53,7 @@ class _MainPage extends State<MainPage> {
         withServices: [],
         scanMode: ScanMode.lowLatency,
         requireLocationServicesEnabled: true).listen((device) {
-      if (device.name == deviceName) {
+      if (device.name != "") {
         print('Nodo encontrado!');
         _connection = _ble
             .connectToDevice(
@@ -92,17 +84,18 @@ class _MainPage extends State<MainPage> {
                 await _ble.readCharacteristic(humidityCharacteristic);
             print(humidityCharacteristic);
             //Flow characteristics
-            final flowCharacteristic = QualifiedCharacteristic(
+            /*final flowCharacteristic = QualifiedCharacteristic(
                 serviceId: Uuid.parse(uuidFlowService),
                 characteristicId: Uuid.parse(uuidFlowCharacteristic),
                 deviceId: device.id);
             final flowResponse =
                 await _ble.readCharacteristic(flowCharacteristic);
             print(flowCharacteristic);
+             */
             setState(() {
-              battery = batteryResponse[0];
-              humidity = humidityResponse[0];
-              flow = flowResponse[0];
+              battery = humidityResponse[0]%100;
+              humidity = humidityResponse[0]~/100;
+              //flow = flowResponse[0];
             });
             _disconnect();
             print('disconnected');
@@ -116,50 +109,6 @@ class _MainPage extends State<MainPage> {
       print('error!');
       print(error.toString());
     });
-  }
-
-  void _addNodoToStarNet() {
-    if (deviceID != "") {
-      final characteristic = QualifiedCharacteristic(
-          serviceId: Uuid.parse(uuidNetService),
-          characteristicId: Uuid.parse(uuidNetCharacteristic),
-          deviceId: deviceID);
-      _ble.writeCharacteristicWithoutResponse(characteristic, value: [0x01]);
-      _connectBLE();
-    }
-  }
-
-  void _removeNodoToStarNet() {
-    if (deviceID != "") {
-      final characteristic = QualifiedCharacteristic(
-          serviceId: Uuid.parse(uuidNetService),
-          characteristicId: Uuid.parse(uuidNetCharacteristic),
-          deviceId: deviceID);
-      _ble.writeCharacteristicWithoutResponse(characteristic, value: [0x00]);
-      _connectBLE();
-    }
-  }
-
-  void _turnOnIrrigation() {
-    if (deviceID != "") {
-      final characteristic = QualifiedCharacteristic(
-          serviceId: Uuid.parse(uuidValveService),
-          characteristicId: Uuid.parse(uuidValveCharacteristic),
-          deviceId: deviceID);
-      _ble.writeCharacteristicWithoutResponse(characteristic, value: [1]);
-      _connectBLE();
-    }
-  }
-
-  void _turnOffIrrigation() {
-    if (deviceID != "") {
-      final characteristic = QualifiedCharacteristic(
-          serviceId: Uuid.parse(uuidValveService),
-          characteristicId: Uuid.parse(uuidValveCharacteristic),
-          deviceId: deviceID);
-      _ble.writeCharacteristicWithoutResponse(characteristic, value: [0]);
-      _connectBLE();
-    }
   }
 
   @override
@@ -242,6 +191,7 @@ class _MainPage extends State<MainPage> {
                         .center //Center Row contents vertically,
                     ),
                 const SizedBox(height: 20),
+                /*
                 Row(
                     children: [
                       if (printMessage == "Estado: Nodo conectado") ...[
@@ -262,66 +212,8 @@ class _MainPage extends State<MainPage> {
                     crossAxisAlignment: CrossAxisAlignment
                         .center //Center Row contents vertically,
                     ),
-                const SizedBox(height: 30),
-                Row(
-                    children: [
-                      if (printMessage == "Estado: Nodo conectado") ...[
-                        if (nodoConnectedToNet = false) ...[
-                          ElevatedButton(
-                              onPressed: _addNodoToStarNet,
-                              child: const Text('Agregar Nodo a la red'),
-                              style: ElevatedButton.styleFrom(
-                                primary: Colors.redAccent,
-                                minimumSize: const Size(250, 50),
-                              ))
-                        ] else ...[
-                          ElevatedButton(
-                              onPressed: _removeNodoToStarNet,
-                              child: const Text('Sacar Nodo de la red'),
-                              style: ElevatedButton.styleFrom(
-                                primary: Colors.greenAccent,
-                                minimumSize: const Size(250, 50),
-                              ))
-                        ]
-                      ] else ...[
-                        const Text("Indefinido")
-                      ]
-                    ],
-                    mainAxisAlignment: MainAxisAlignment
-                        .center, //Center Row contents horizontally,
-                    crossAxisAlignment: CrossAxisAlignment
-                        .center //Center Row contents vertically,
-                    ),
-                const SizedBox(height: 20),
-                Row(
-                    children: [
-                      if (printMessage == "Estado: Nodo conectado") ...[
-                        if (irrigationWorking = false) ...[
-                          ElevatedButton(
-                              onPressed: _turnOnIrrigation,
-                              child: const Text('Encender Riego'),
-                              style: ElevatedButton.styleFrom(
-                                primary: Colors.redAccent,
-                                minimumSize: const Size(250, 50),
-                              ))
-                        ] else ...[
-                          ElevatedButton(
-                              onPressed: _turnOffIrrigation,
-                              child: const Text('Apagar Riego'),
-                              style: ElevatedButton.styleFrom(
-                                primary: Colors.greenAccent,
-                                minimumSize: const Size(250, 50),
-                              ))
-                        ]
-                      ] else ...[
-                        const Text("Indefinido")
-                      ]
-                    ],
-                    mainAxisAlignment: MainAxisAlignment
-                        .center, //Center Row contents horizontally,
-                    crossAxisAlignment: CrossAxisAlignment
-                        .center //Center Row contents vertically,
-                    ),
+
+                 */
               ],
             ),
           )
